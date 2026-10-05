@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+option go_package = "golang.garena.com/vodka/backend/internal/protocol/pbhttp";
+
+package protohttp;
+
+import "api/protocommon/common.proto";
+
+message CSMajorLoginReq {
+  string app_key = 1;
+  string app_secret = 2;
+  string account_id = 3;
+  string region = 4;
+  repeated protocommon.SDK.ParamFilterValue filter_values = 5;
+  uint32 server_id = 6;
+}
+
+message CSMajorLoginResp {
+  string token = 1;
+  string voice_service_address = 2;
+  uint32 server_timestamp = 3;
+  protocommon.SDKParams sdk_params = 4;
+  repeated protocommon.SDK.Value values = 5;
+}
+
+message CSReportedUploadReq {
+  string reporter = 1;
+  bytes audio_data = 2;
+}
+
+message CSReportedUploadResp {
+}
