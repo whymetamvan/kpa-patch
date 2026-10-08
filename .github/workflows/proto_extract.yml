@@ -23,48 +23,30 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y unzip apktool
-
-      - name: Extract APK
-        run: |
-          mkdir -p extracted
-          unzip -q free-fire.apk -d extracted
+          sudo apt-get install -y apktool
 
       - name: Decode APK
         run: |
-          apktool d free-fire.apk \
-            -o decoded \
-            --force
+          apktool d free-fire.apk -o decoded --force
 
-      - name: Find all .proto files
+      - name: Extract files
         run: |
           mkdir -p proto
-
-          echo "Searching APK..."
-          find extracted decoded \
-            -type f \
-            -iname "*.proto" \
-            -print
-
-          find extracted decoded \
-            -type f \
-            -iname "*.proto" \
-            -exec cp --parents {} proto/ \;
+          # Mencari file .proto dan menyalinnya ke folder proto tanpa merusak struktur dasar
+          find decoded -type f -iname "*.proto" -exec cp {} proto/ \;
 
       - name: Show extracted files
         run: |
-          echo "=== PROTO FILES ==="
-          find proto -type f -print || true
+          echo "=== HASIL EKSTRAKSI ==="
+          ls -la proto/
+          echo "Jumlah file: $(find proto -type f | wc -l)"
 
-          echo "=== COUNT ==="
-          find proto -type f | wc -l
-
-      - name: Remove APK and temporary files
+      - name: Clean temporary files
         run: |
           rm -f free-fire.apk
-          rm -rf extracted decoded
+          rm -rf decoded
 
-      - name: Commit proto files
+      - name: Commit files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -72,9 +54,9 @@ jobs:
           git add proto/
 
           if git diff --cached --quiet; then
-            echo "No new .proto files found."
+            echo "Tidak ada file .proto baru yang ditemukan."
             exit 0
           fi
 
-          git commit -m "Extract protobuf files from APK"
+          git commit -m "Extract proto files from APK"
           git push
