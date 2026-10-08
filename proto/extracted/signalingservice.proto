@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+option go_package = "golang.garena.com/vodka/backend/internal/protocol/pbtcp";
+package prototcp;
+
+import "api/protocommon/common.proto";
+
+message ESignaling {
+  enum Proto {
+    Proto_NONE = 0;
+    Proto_JOIN_Channel = 1; //JoinChannelReq JoinChannelResp
+    Proto_LEAVE_Channel = 2; //LeaveChannelReq LeaveChannelResp
+    Proto_MUTE = 3; //ChannelMuteReq ChannelMuteResp
+    Proto_UNMUTE = 4; //ChannelUnMuteReq ChannelUnMuteResp
+    Proto_REPORT = 5; //ChannelReportReq
+    Proto_TRICKLE = 6; //TrickleReq
+    Proto_OTHER_JOIN_CHANNEL_NTF = 7; //OtherJoinChannelNty
+    Proto_OTHER_LEAVE_CHANNEL_NTF = 8; //OtherLeaveChannelNty
+    Proto_REPORT_ED_NTF = 9; //ReportedNty
+    Proto_SET_RECEIVER = 10; //SetReceiverReq
+    Proto_CHANGE_MICROPHONE_STATUS = 11; //ChangeMicrophoneStatusReq
+    Proto_SYNC_SPEAKING_STATUS = 12; //SyncSpeakingStatusReq
+    Proto_SYNC_SPEAKING_STATUS_NTY = 13; //OtherSyncSpeakingStatusNty
+    Proto_UPDATE_SDP = 14;//UpdateSDPReq UpdateSDPResp
+    Proto_SERVER_UPDATE_SDP = 15;//UpdateSDPReq UpdateSDPResp
+    Proto_REPORT_METRICS = 16;//ReportMetricsReq
+    Proto_CHANGE_SPEAKER_MUTE_STATUS = 17;//ChangeSpeakerMuteStatusReq
+    Proto_MUTE_NTF = 18; // OtherMuteNfy
+    Proto_UNMUTE_NTF = 19; // OtherUnMuteNfy
+  }
+
+  enum DataChannelProto{
+    DataChannelProto_NONE = 0;
+    DataChannelProto_BOUNCE_BACK_PING = 1;//senderLen(4)sender(string)seq(8)time(8)
+    DataChannelProto_BOUNCE_BACK_PONG = 2;//senderLen(4)sender(string)seq(8)time(8)
+  }
+
+  enum ErrCode {
+    ErrCode_SUSS = 0;
+    ErrCode_HAS_NOT_JOIN_Channel = 1;
+    ErrCode_CHANNEL_IS_FULL = 2;
+    ErrCode_HAS_JOIN_Channel = 3;
+    ErrCode_SERVER_EXCEPTION = 4;
+  }
+}
+
+message JoinChannelReq {
+  reserved 7;
+  repeated string expect_idc = 1;
+  string channel_id = 2;
+  protocommon.RTCSessionDescription offer = 3;
+  uint32 client_timestamp = 4;
+  bool microphone_is_close = 5;
+  protocommon.EVoiceService.ChannelType channel_type = 6;
+  uint32 init_remote_speaking_count = 8;
+  uint32 max_remote_speaking_count = 9;
+}
+
+message JoinChannelResp {
+  reserved 2;
+  string channel_id = 1;
+  protocommon.RTCSessionDescription answer = 3;
+  ChannelInfo channel_info = 4;
+}
+
+message UpdateSDPReq{
+  protocommon.RTCSessionDescription offer = 1;
+}
+
+message UpdateSDPResp{
+  protocommon.RTCSessionDescription answer = 1;
+}
+
+message ChannelInfo {
+  repeated string account_ids = 1;
+  repeated protocommon.VoiceAccountInfo account_infos = 2;
+}
+
+message OtherJoinChannelNty {
+  string account_id = 1;
+  string platform = 2;
+}
+
+message OtherLeaveChannelNty{
+  string account_id = 1;
+  protocommon.EVoiceService.LeaveReason reason = 2;
+}
+
+message LeaveChannelReq {
+}
+
+message LeaveChannelResp {
+}
+
+message ChannelMuteReq{
+  repeated string account_ids = 1;
+}
+
+message ChannelMuteResp{
+}
+
+message OtherMuteNfy{
+  string account_id = 1;
+}
+
+message ChannelUnMuteReq{
+  repeated string account_ids = 1;
+}
+
+message ChannelUnMuteResp{
+}
+
+message OtherUnMuteNfy{
+  string account_id = 1;
+}
+
+message ChannelReportReq{
+  repeated string account_ids = 1;
+}
+
+message TrickleReq{
+  protocommon.ICECandidateInit  ice_candidate_init = 1;
+}
+
+message ReportedNty{
+  string reporter = 1;
+}
+
+message SetReceiverReq{
+  bool is_all = 1;
+  repeated string account_ids = 2;
+}
+
+message ChangeMicrophoneStatusReq{
+  bool is_open = 1;
+}
+
+message SyncSpeakingStatusReq{
+  bool is_speaking = 1;
+  repeated string channel_mates = 2;
+}
+
+message OtherSyncSpeakingStatusNty{
+  string account_id = 1;
+  bool is_speaking = 2;
+}
+
+message ReportMetricsReq{
+  float delay = 1;
+  float drop_rate = 2;
+  float jitter = 3;
+  float ping = 4;
+}
+
+message ChangeSpeakerMuteStatusReq{
+  bool is_mute = 1;
+}
