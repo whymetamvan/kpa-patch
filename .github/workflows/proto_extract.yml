@@ -23,40 +23,60 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y apktool
+          sudo apt-get install -y apktool zip tzdata
 
       - name: Decode APK
         run: |
           apktool d free-fire.apk -o decoded --force
 
-      - name: Extract files
+      - name: Set Folder Name with Timestamp and Extract Files
         run: |
-          mkdir -p proto
-          # Mencari file .proto dan menyalinnya ke folder proto tanpa merusak struktur dasar
-          find decoded -type f -iname "*.proto" -exec cp {} proto/ \;
+          # Mengatur zona waktu ke Asia/Jakarta (WIB)
+          export TZ="Asia/Jakarta"
+          
+          # Format nama folder: "PROTO DD-MM-YYYY HH.MM"
+          FOLDER_NAME="PROTO $(date +'%d-%m-%Y %H.%M')"
+          
+          echo "FOLDER_NAME=$FOLDER_NAME" >> $GITHUB_ENV
+          mkdir -p "$FOLDER_NAME"
+
+          # Mencari file .proto dan menyalinnya ke folder berstempel waktu
+          find decoded -type f -iname "*.proto" -exec cp {} "$FOLDER_NAME/" \;
+
+      - name: Create ZIP archive
+        run: |
+          if [ -n "$(ls -A "$FOLDER_NAME" 2>/dev/null)" ]; then
+            zip -r "${FOLDER_NAME}.zip" "$FOLDER_NAME"
+            echo "Berhasil membuat ${FOLDER_NAME}.zip"
+          else
+            echo "Folder $FOLDER_NAME kosong, ZIP tidak dibuat."
+          fi
 
       - name: Show extracted files
         run: |
           echo "=== HASIL EKSTRAKSI ==="
-          ls -la proto/
-          echo "Jumlah file: $(find proto -type f | wc -l)"
+          ls -la "$FOLDER_NAME/" || true
+          echo "Jumlah file: $(find "$FOLDER_NAME" -type f 2>/dev/null | wc -l)"
+          ls -la "${FOLDER_NAME}.zip" || true
 
       - name: Clean temporary files
         run: |
           rm -f free-fire.apk
           rm -rf decoded
 
-      - name: Commit files
+      - name: Commit and push files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add proto/
+          # Menambahkan folder dinamis dan file zip ke git
+          git add "$FOLDER_NAME/"
+          [ -f "${FOLDER_NAME}.zip" ] && git add "${FOLDER_NAME}.zip"
 
           if git diff --cached --quiet; then
-            echo "Tidak ada file .proto baru yang ditemukan."
+            echo "Tidak ada file baru untuk di-commit."
             exit 0
           fi
 
-          git commit -m "Extract proto files from APK"
+          git commit -m "Extract proto files to '$FOLDER_NAME'"
           git push
