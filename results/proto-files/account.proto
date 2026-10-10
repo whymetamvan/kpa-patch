@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "golang.garena.com/vodka/backend/internal/protocol/pbtcp";
+
+package prototcp;
+
+message EAccount {
+  enum Proto {
+    Proto_NONE = 0;
+    Proto_MULTILOGIN_NTF = 1;
+    Proto_INVALID_CLIENT_VERSION_NTF = 2;
+    Proto_ACCOUNT_IN_BLACKLIST_NTF = 3;
+    Proto_ACCOUNT_LEVEL_UP_NTF = 4;
+    Proto_ACCOUNT_ROLE_CHANGED_NTF = 5;
+  }
+
+  enum ErrCode {
+    ErrCode_SUSS = 0;
+  }
+}
