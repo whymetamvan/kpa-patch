@@ -1,0 +1,137 @@
+name: APK Protobuf Static Analysis
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip curl python3
+          sudo apt-get install -y jadx || true
+
+      - name: Download APK
+        run: |
+          mkdir -p work results/proto-files results/reports
+
+          curl -fL --retry 3 \
+            "https://github.com/whymetamvan/kpa-patch/releases/download/v1.132.1-1/free-fire-1-132-1.apk" \
+            -o work/app.apk
+
+          sha256sum work/app.apk \
+            > results/reports/apk-sha256.txt
+
+      - name: Inspect APK contents
+        run: |
+          unzip -l work/app.apk \
+            > results/reports/apk-contents.txt
+
+          unzip -q work/app.apk -d work/unpacked
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+
+          root = Path("work/unpacked")
+          dest = Path("results/proto-files")
+          count = 0
+
+          for f in root.rglob("*.proto"):
+              if f.is_file():
+                  out = dest / f.relative_to(root)
+                  out.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(f, out)
+                  count += 1
+
+          Path("results/reports/proto-count.txt").write_text(
+              f"Existing .proto files found: {count}\n"
+          )
+          PY
+
+      - name: Decompile APK
+        continue-on-error: true
+        run: |
+          if command -v jadx >/dev/null 2>&1; then
+            jadx -j 2 -d work/decompiled work/app.apk \
+              > results/reports/jadx.log 2>&1 || true
+          else
+            echo "JADX is unavailable on this runner." \
+              > results/reports/jadx.log
+          fi
+
+      - name: Generate Protobuf indicator report
+        if: always()
+        run: |
+          mkdir -p results/reports
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path("work/decompiled")
+          output = Path(
+              "results/reports/protobuf-indicators.txt"
+          )
+
+          patterns = re.compile(
+              r"GeneratedMessageLite|"
+              r"GeneratedMessageV3|"
+              r"parseFrom|"
+              r"writeTo|"
+              r"protobuf|"
+              r"proto3",
+              re.IGNORECASE,
+          )
+
+          matches = []
+          if root.exists():
+              for f in root.rglob("*.java"):
+                  try:
+                      for number, line in enumerate(
+                          f.read_text(
+                              encoding="utf-8",
+                              errors="ignore"
+                          ).splitlines(),
+                          1
+                      ):
+                          if patterns.search(line):
+                              matches.append(
+                                  f"{f}:{number}: {line.strip()}"
+                              )
+                  except OSError:
+                      pass
+
+          output.write_text(
+              "\n".join(matches) if matches
+              else "No Protobuf indicators detected.\n"
+          )
+
+          print(f"Indicator lines found: {len(matches)}")
+          PY
+
+      - name: Save results to repository
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add results/
+
+          if ! git diff --cached --quiet; then
+            git commit -m "Add APK static analysis reports"
+            git push
+          else
+            echo "No new results to commit."
+          fi
